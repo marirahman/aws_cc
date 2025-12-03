@@ -13,11 +13,9 @@ $db   = "db_tugas";
 $koneksi = mysqli_connect($host, $user, $pass, $db);
 if (!$koneksi) { die("Gagal Konek Database: " . mysqli_connect_error()); }
 
-// --- GAMBAR ONLINE (Unsplash CDN) ---
-// Gambar ini diambil dari internet agar pasti muncul dan kualitas HD
-$img_laptop = "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=500&auto=format&fit=crop&q=60";
-$img_hp     = "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=500&auto=format&fit=crop&q=60";
-$img_acc    = "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60";
+// --- GAMBAR CADANGAN (Anti Gagal) ---
+// Jika gambar di database rusak, script akan otomatis pakai ini
+$img_default = "https://placehold.co/400x300/001f3f/ffffff?text=PRODUK+TOKO";
 
 if (!isset($_SESSION['cart'])) { $_SESSION['cart'] = array(); }
 if (!isset($_SESSION['order_history'])) { $_SESSION['order_history'] = array(); }
@@ -37,6 +35,7 @@ if (isset($_POST['btn_konfirmasi'])) {
     $metode = htmlspecialchars($_POST['metode_pembayaran']);
     $full_alamat = "$alamat_input, $kota, $kodepos (Telp: $telepon)";
     
+    // Pastikan tabel pesanan punya kolom quantity
     $stmt = $koneksi->prepare("INSERT INTO pesanan (nama_pembeli, alamat, nama_barang, total_harga, quantity) VALUES (?, ?, ?, ?, ?)");
     
     $total_trx = 0;
@@ -58,7 +57,7 @@ if (isset($_POST['btn_konfirmasi'])) {
     }
     $stmt->close();
 
-    // Simpan data history ke session
+    // Simpan history ke session
     $new_order = [
         'id' => 'INV-' . rand(1000,9999),
         'tanggal' => date('d F Y, H:i'),
@@ -102,8 +101,9 @@ if (isset($_POST['add_to_cart'])) {
                 break;
             }
         }
-        // Gunakan gambar DB jika ada, jika tidak pakai gambar online default
-        $gambar_fix = (!empty($prod['gambar']) && filter_var($prod['gambar'], FILTER_VALIDATE_URL)) ? $prod['gambar'] : $img_laptop;
+        
+        // Cek apakah gambar valid URL, jika tidak pakai default
+        $gambar_fix = (!empty($prod['gambar']) && filter_var($prod['gambar'], FILTER_VALIDATE_URL)) ? $prod['gambar'] : $img_default;
         
         if (!$found) {
             $_SESSION['cart'][] = [
@@ -322,7 +322,7 @@ function cart_count() {
                                         <div class="card-body">
                                             <div class="row align-items-center">
                                                 <div class="col-3 col-md-2">
-                                                    <img src="<?php echo $v['gambar']; ?>" class="img-fluid rounded">
+                                                    <img src="<?php echo $v['gambar']; ?>" class="img-fluid rounded" onerror="this.src='<?php echo $img_default; ?>'">
                                                 </div>
                                                 <div class="col-9 col-md-5">
                                                     <h6 class="fw-bold mb-1"><?php echo $v['nama_barang']; ?></h6>
@@ -413,13 +413,13 @@ function cart_count() {
                     $q = mysqli_query($koneksi, "SELECT * FROM produk");
                     if (mysqli_num_rows($q) > 0) {
                         while($d = mysqli_fetch_array($q)) {
-                            // Gambar Online dari DB atau Default
-                            $gbr = (!empty($d['gambar']) && filter_var($d['gambar'], FILTER_VALIDATE_URL)) ? $d['gambar'] : $img_laptop;
+                            // Validasi Gambar
+                            $gbr = (!empty($d['gambar']) && filter_var($d['gambar'], FILTER_VALIDATE_URL)) ? $d['gambar'] : $img_default;
                     ?>
                         <div class="col-md-4 mb-4">
                             <div class="card h-100">
                                 <div style="height: 220px; overflow: hidden;">
-                                    <img src="<?php echo $gbr; ?>" class="product-img">
+                                    <img src="<?php echo $gbr; ?>" class="product-img" onerror="this.src='<?php echo $img_default; ?>'">
                                 </div>
                                 <div class="card-body d-flex flex-column">
                                     <h5 class="fw-bold mb-1"><?php echo $d['nama_barang']; ?></h5>
